@@ -145,6 +145,20 @@ cases <- list(
                  d
              }),
              error = "dataset 1: type must be quant or cc"),
+    "type is not completed from its first letter" =
+        list(d = local({
+                 d <- D1
+                 d$type <- "q"
+                 d
+             }),
+             error = "dataset 1: type must be quant or cc"),
+    "type is one value" =
+        list(d = local({
+                 d <- D1
+                 d$type <- c("quant", "cc")
+                 d
+             }),
+             error = "dataset 1: type must be quant or cc"),
     "the snp ids are unique" =
         list(d = local({
                  d <- D1
@@ -476,6 +490,22 @@ cases <- list(
                  d
              }),
              error = "dataset 1: type must be quant or cc"),
+    ## given as p-values with no s: read as "cc" it would lack s, and read as
+    ## "quant" it would pass
+    "wakefield: a type of c is neither cc nor quant" =
+        list(args = wakefield, d = local({
+                 d <- pv1
+                 d$type <- "c"
+                 d
+             }),
+             error = "dataset 1: type must be quant or cc"),
+    "wakefield: type is one value" =
+        list(args = wakefield, d = local({
+                 d <- D1
+                 d$type <- c("quant", "cc")
+                 d
+             }),
+             error = "dataset 1: type must be quant or cc"),
     "wakefield: LD is not read" =
         list(args = wakefield, d = local({
                  d <- D1
@@ -717,10 +747,30 @@ test_that("check_dataset() refuses a data.frame, as coloc() does", {
                      "dataset 1: this is a data.frame, not a list of coloc_dataset elements (snp, beta, varbeta, ...)")
 })
 
-test_that("engine must be NULL, wakefield or susie", {
+test_that("engine must be none, wakefield or susie", {
     for (engine in list("abf", c("wakefield", "susie"), 1, NA))
         expect_error(check_dataset(D1, engine = engine),
-                     "engine must be NULL or one of: wakefield, susie", fixed = TRUE)
+                     "engine must be one of: none, wakefield, susie", fixed = TRUE)
+})
+
+test_that("no engine, NULL and \"none\" give the same check", {
+    expect_null(check_dataset(D1, engine = "none"))
+    expect_null(check_dataset(D1, engine = NULL))
+    ## an LD that is no correlation matrix, which only a check that reads LD refuses
+    D <- as_coloc_dataset(D1)
+    D$LD <- D$LD * 1.5
+    for (check in list(function() check_dataset(D),
+                       function() check_dataset(D, engine = NULL),
+                       function() check_dataset(D, engine = "none")))
+        expect_error(check(), "LD must be a correlation matrix", fixed = TRUE)
+})
+
+test_that("an engine is read from the start of its name", {
+    no_LD <- D1
+    no_LD$LD <- NULL
+    expect_null(check_dataset(D1, engine = "sus"))
+    e <- expect_error(check_dataset(no_LD, engine = "sus"))
+    expect_identical(conditionMessage(e), "LD is missing; SuSiE needs LD, the correlation matrix of the snps")
 })
 
 test_that("a check for Wakefield doesn't test LD's values, and one for SuSiE does", {

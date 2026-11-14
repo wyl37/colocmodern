@@ -4,7 +4,13 @@
 \alias{check_dataset}
 \title{Check a coloc dataset}
 \usage{
-check_dataset(d, suffix = "", engine = NULL, req = NULL, warn.minp = 1e-06)
+check_dataset(
+  d,
+  suffix = "",
+  engine = names(.engine_reads),
+  req = NULL,
+  warn.minp = 1e-06
+)
 }
 \arguments{
 \item{d}{a dataset, as a list or a \code{\link[=coloc_dataset]{coloc_dataset()}}, but not a data.frame}
@@ -13,7 +19,7 @@ check_dataset(d, suffix = "", engine = NULL, req = NULL, warn.minp = 1e-06)
 message as "dataset 1: ". With "" messages have no label}
 
 \item{engine}{the engine the dataset is checked for, \code{"wakefield"} or
-\code{"susie"}, or \code{NULL} for none}
+\code{"susie"}, or \code{"none"}, the default, for no engine}
 
 \item{req}{other elements that must be present, such as \code{"position"}}
 
@@ -75,12 +81,12 @@ not a data.frame, \code{snp} is given, with each snp id once and not as a
 factor, the elements \code{req} names are given, and the per-snp elements have
 the same length.
 
-It then checks the values of some elements. With no \code{engine}, these are
-all the elements that are given, apart from \code{z}. With an \code{engine}, they
-are the elements that engine reads, which must all be given. So a check
-for \code{"wakefield"} leaves \code{LD} alone, and checking \code{LD} takes far longer
-than checking the rest of a dataset. An element whose values are checked
-must have no missing values, and:
+It then checks the values of some elements. With \code{engine = "none"},
+these are all the elements that are given, apart from \code{z}. With
+\code{"wakefield"} or \code{"susie"}, they are the elements that engine reads, which
+must all be given. So a check for \code{"wakefield"} leaves \code{LD} alone, and
+checking \code{LD} takes far longer than checking the rest of a dataset. An
+element whose values are checked must have no missing values, and:
 \itemize{
 \item \code{type} must be one value, \code{"quant"} or \code{"cc"};
 \item \code{s} must be one number between 0 and 1;

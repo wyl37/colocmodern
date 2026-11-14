@@ -48,12 +48,12 @@
 ##' factor, the elements `req` names are given, and the per-snp elements have
 ##' the same length.
 ##'
-##' It then checks the values of some elements. With no `engine`, these are
-##' all the elements that are given, apart from `z`. With an `engine`, they
-##' are the elements that engine reads, which must all be given. So a check
-##' for `"wakefield"` leaves `LD` alone, and checking `LD` takes far longer
-##' than checking the rest of a dataset. An element whose values are checked
-##' must have no missing values, and:
+##' It then checks the values of some elements. With `engine = "none"`,
+##' these are all the elements that are given, apart from `z`. With
+##' `"wakefield"` or `"susie"`, they are the elements that engine reads, which
+##' must all be given. So a check for `"wakefield"` leaves `LD` alone, and
+##' checking `LD` takes far longer than checking the rest of a dataset. An
+##' element whose values are checked must have no missing values, and:
 ##'
 ##' * `type` must be one value, `"quant"` or `"cc"`;
 ##' * `s` must be one number between 0 and 1;
@@ -78,7 +78,7 @@
 ##' @param suffix a label for the dataset, such as 1 or 2, which begins each
 ##'     message as "dataset 1: ". With "" messages have no label
 ##' @param engine the engine the dataset is checked for, `"wakefield"` or
-##'     `"susie"`, or `NULL` for none
+##'     `"susie"`, or `"none"`, the default, for no engine
 ##' @param req other elements that must be present, such as `"position"`
 ##' @param warn.minp warn when no p-value is below this
 ##' @return `NULL` when it finds no problem. Otherwise it stops with an error
@@ -94,7 +94,7 @@
 ##' try(check_dataset(bad, 1))
 check_dataset <- function(d,
                           suffix="",
-                          engine=NULL,
+                          engine=names(.engine_reads),
                           req=NULL,
                           warn.minp=1e-6) {
     ## A label, such as 1 or 2, starts each message as "dataset 1: "; "", NULL,
@@ -105,10 +105,8 @@ check_dataset <- function(d,
     prefix <- if (is.null(dataset)) "" else paste0("dataset ", dataset, ": ")
     fail <- function(...) stop(prefix, ..., call. = FALSE)
 
-    if (!is.null(engine) &&
-        !(is.character(engine) && length(engine) == 1L && engine %in% names(.engine_reads)))
-        stop("engine must be NULL or one of: ", paste(names(.engine_reads), collapse = ", "),
-             call. = FALSE)
+    engine <- tryCatch(match.arg(engine), error = function(e)
+        stop("engine must be one of: ", paste(names(.engine_reads), collapse = ", "), call. = FALSE))
     if (!is.list(d) || is.data.frame(d)) # a data.frame repeats type, sdY and N on every row
         .stop_not_a_dataset(d, dataset)
     nd <- intersect(names(d), .dataset_items)          # the elements coloc reads
@@ -130,19 +128,17 @@ check_dataset <- function(d,
             fail("snp has ", length(d$snp), if (length(d$snp) == 1L) " value" else " values",
                  " but ", v, " has ", length(d[[v]]))
 
-    ## 2. The values of the elements in `read`: with no engine every element
-    ## given but z, and with an engine what that engine reads. The engine's
-    ## entry stops when an element it needs is absent.
-    read <- if (is.null(engine)) setdiff(nd, "z")
-            else c("snp", .engine_reads[[engine]](d, nd, fail))
+    ## 2. The values of the elements in `read`, which are what the engine
+    ## reads. The engine's entry stops when an element it needs is absent.
+    read <- c("snp", .engine_reads[[engine]](d, nd, fail))
     reads <- function(v) v %in% read
     ## no missing values - make people clean their own data rather than make
     ## assumptions here for datasets I don't know. z has its own rule, below
     for (v in setdiff(intersect(nd, read), "z"))
         if (anyNA(d[[v]]))
             fail(v, " contains missing values")
-    if (reads("type"))
-        .check_type(d, fail)
+    if (reads("type") && !(length(d$type) == 1L && d$type %in% c("quant", "cc")))
+        fail("type must be quant or cc")
     if (reads("s")) {
         if (length(d$s) != 1L)
             fail("s must be a single number between 0 and 1")
@@ -222,16 +218,6 @@ check_dataset <- function(d,
     NULL
 }
 
-## type is one value, "quant" or "cc"
-.check_type <- function(d, fail) {
-    if (anyNA(d$type))
-        fail("type contains missing values")
-    if (length(d$type) != 1L)
-        fail("type must be a single value, quant or cc")
-    if (!(d$type %in% c("quant", "cc")))
-        fail("type must be quant or cc")
-}
-
 ## for messages: "pvalues is missing", "pvalues and MAF are missing"
 .is_missing <- function(v)
     paste(if (length(v) < 2L) v else paste(paste(v[-length(v)], collapse = ", "), "and", v[length(v)]),
@@ -241,17 +227,21 @@ check_dataset <- function(d,
 ## stops, through fail(), when an element its engine needs is absent, and
 ## returns the elements whose values check_dataset() then checks. A new engine
 ## adds an entry here, and the rules for each element's values stay as they
-## are.
+## are. The first entry is check_dataset()'s default.
 .engine_reads <- list(
+    ## no engine: every element given, apart from z
+    none = function(d, nd, fail) setdiff(nd, "z"),
     ## type, then beta and varbeta, or else pvalues, MAF and N
     wakefield = function(d, nd, fail) {
         if (!("type" %in% nd))
             fail('type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait')
-        .check_type(d, fail)            # the type decides what else is read
+        ## the type decides what else is read. check_dataset() tests it
+        ## afterwards, so a type that is not "cc" is read here as "quant"
+        cc <- isTRUE(d$type == "cc")
         if (all(c("beta", "varbeta") %in% nd)) {
             ## a quantitative trait's prior is in units of sdY, which is
             ## estimated from varbeta, MAF and N when not given
-            if (d$type == "cc")
+            if (cc)
                 return(c("type", "beta", "varbeta"))
             if ("sdY" %in% nd)
                 return(c("type", "beta", "varbeta", "sdY"))
@@ -262,12 +252,12 @@ check_dataset <- function(d,
         if (!all(c("pvalues", "MAF") %in% nd))
             fail(.is_missing(setdiff(c("pvalues", "MAF"), nd)),
                  "; without beta and varbeta, coloc needs pvalues, MAF and N")
-        if (d$type == "cc" && !("s" %in% nd))
+        if (cc && !("s" %in% nd))
             fail("s is missing; a case-control dataset without beta and varbeta needs s, ",
                  "the proportion of samples who are cases")
         if (!("N" %in% nd))
             fail("N is missing; without beta and varbeta, coloc needs N, the sample size")
-        c("type", "pvalues", "MAF", "N", if (d$type == "cc") "s")
+        c("type", "pvalues", "MAF", "N", if (cc) "s")
     },
     ## LD and N, then z, or else beta and varbeta
     susie = function(d, nd, fail) {
