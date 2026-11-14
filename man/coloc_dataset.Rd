@@ -74,12 +74,17 @@ The result has class \code{"coloc_dataset"}, but is still a list with the same
 elements, so code that reads \code{D$beta} works unchanged. \code{as_coloc_dataset()}
 keeps elements coloc does not use.
 
-Which elements are needed depends on the data, and \code{\link[=check_dataset]{check_dataset()}} gives
-the details. In brief, always give \code{snp} and \code{type}, and give \code{beta} and
-\code{varbeta} if you have them. Without them, give \code{pvalues}, \code{MAF} and \code{N},
-and \code{s} for a case-control trait. A quantitative trait given as \code{beta} and
-\code{varbeta} needs \code{sdY}, or \code{MAF} and \code{N} so coloc can estimate it.
-Fine-mapping with SuSiE needs \code{beta}, \code{varbeta}, \code{LD} and \code{N}.
+Every dataset needs \code{snp}. Which other elements it needs depends on the
+engine that fine-maps it, and \code{\link[=check_dataset]{check_dataset()}} gives the details. In
+brief, \code{"wakefield"} needs \code{type}, and \code{beta} and \code{varbeta} if you have
+them. Without them, give \code{pvalues}, \code{MAF} and \code{N}, and \code{s} for a
+case-control trait. A quantitative trait given as \code{beta} and \code{varbeta}
+needs \code{sdY}, or \code{MAF} and \code{N} so coloc can estimate it. \code{"susie"} needs
+\code{LD} and \code{N}, and either \code{z} or both \code{beta} and \code{varbeta}.
+
+A dataset is made with whichever elements you give, and their values are
+checked. Whether it has what an engine needs is checked when the engine
+runs, or by \code{check_dataset()} with that \code{engine}.
 
 If you change a dataset's elements after it is made, coloc's functions
 check it again when they use it. \code{as_coloc_dataset()} returns a
@@ -103,7 +108,9 @@ D1 <- as_coloc_dataset(coloc_test_data$D1)
 ## mistakes are reported when the dataset is made
 try(coloc_dataset(snp = paste0("s", 1:5),
                   type = "quant",
-                  beta = c(0.1, 0.5, 0.2, 0, 0.05)))
+                  beta = c(0.1, 0.5, 0.2, NA, 0.05),
+                  varbeta = rep(0.01, 5),
+                  sdY = 1))
 }
 \seealso{
 \code{\link[=check_dataset]{check_dataset()}} for what each element must look like
