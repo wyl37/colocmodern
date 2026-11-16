@@ -44,8 +44,8 @@
 ##'   `varbeta`.
 ##'
 ##' `check_dataset()` first checks the dataset's structure: it is a list and
-##' not a data.frame, `snp` is given, with each snp id once and not as a
-##' factor, the elements `req` names are given, and the per-snp elements have
+##' not a data.frame, `snp` is given, as a character vector with each snp id
+##' once, the elements `req` names are given, and the per-snp elements have
 ##' the same length.
 ##'
 ##' It then checks the values of some elements. With `engine = "none"`,
@@ -79,7 +79,8 @@
 ##'     message as "dataset 1: ". With "" messages have no label
 ##' @param engine the engine the dataset is checked for, `"wakefield"` or
 ##'     `"susie"`, or `"none"`, the default, for no engine
-##' @param req other elements that must be present, such as `"position"`
+##' @param req other elements that must be present and whose values are
+##'     checked, such as `"position"`
 ##' @param warn.minp warn when no p-value is below this
 ##' @return `NULL` when it finds no problem. Otherwise it stops with an error
 ##' @importFrom stats pnorm
@@ -118,10 +119,11 @@ check_dataset <- function(d,
     absent <- setdiff(c("snp", req), nd)
     if (length(absent))
         fail("missing required element(s) ", paste(absent, collapse = ", "))
+    ## LD's dimnames are character, and numeric ids would index LD by position
+    if (!is.character(d$snp))
+        fail("snp should be a character vector but is ", .what_is(d$snp))
     if (any(duplicated(d$snp)))
         fail("duplicated snps found")
-    if (is.factor(d$snp))
-        fail("snp should be a character vector but is a factor")
     ## each per-snp element but z has as many values as snp
     for (v in intersect(setdiff(.per_snp_items, "z"), nd))
         if (length(d[[v]]) != length(d$snp))
@@ -129,8 +131,9 @@ check_dataset <- function(d,
                  " but ", v, " has ", length(d[[v]]))
 
     ## 2. The values of the elements in `read`, which are what the engine
-    ## reads. The engine's entry stops when an element it needs is absent.
-    read <- c("snp", .engine_reads[[engine]](d, nd, fail))
+    ## reads and what req names. The engine's entry stops when an element it
+    ## needs is absent.
+    read <- union(c("snp", req), .engine_reads[[engine]](d, nd, fail))
     reads <- function(v) v %in% read
     ## no missing values - make people clean their own data rather than make
     ## assumptions here for datasets I don't know. z has its own rule, below
@@ -179,7 +182,7 @@ check_dataset <- function(d,
             fail("LD must be a numeric matrix")
         ## only the dataset's snps, copied out only when LD covers more; with
         ## as many, they are the same snps
-        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
+        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp, drop = FALSE] else d$LD
         if (!.is_correlation(LD))
             fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
     }

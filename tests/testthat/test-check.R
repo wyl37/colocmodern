@@ -173,6 +173,35 @@ cases <- list(
                  d
              }),
              error = "dataset 1: snp should be a character vector but is a factor"),
+    "snp is not numeric" =
+        list(d = local({
+                 d <- D1
+                 d$snp <- seq_along(d$snp)
+                 d
+             }),
+             error = "dataset 1: snp should be a character vector but is a numeric vector"),
+    "snp is not numeric, when LD's names would match it" =
+        list(d = list(snp = c(1, 3),
+                      LD = matrix(c(1, 0, 0, 0, 1, 2, 0, 2, 1), 3,
+                                  dimnames = list(c("2", "1", "3"), c("2", "1", "3")))),
+             error = "dataset 1: snp should be a character vector but is a numeric vector"),
+    "snp is not a list" =
+        list(d = local({
+                 d <- D1
+                 d$snp <- as.list(d$snp)
+                 d
+             }),
+             error = "dataset 1: snp should be a character vector but is a list"),
+    "snp is not logical" =
+        list(d = list(snp = c(TRUE, FALSE)),
+             error = "dataset 1: snp should be a character vector but is a logical vector"),
+    "a snp that is not a character vector is refused before its ids are compared" =
+        list(d = local({
+                 d <- D1
+                 d$snp <- rep(1L, length(d$snp))
+                 d
+             }),
+             error = "dataset 1: snp should be a character vector but is a numeric vector"),
     "MAF is above 0" =
         list(d = local({
                  d <- D1
@@ -648,6 +677,49 @@ cases <- list(
     "req sets the required elements" =
         list(d = D1, args = list(req = c("snp", "pvalues")),
              error = "dataset 1: missing required element(s) pvalues"),
+    "wakefield: the values of an element req names are checked" =
+        list(d = local({
+                 d <- D1
+                 d$position <- rep(c(-5, 2.5), length.out = length(d$snp))
+                 d
+             }),
+             args = c(wakefield, list(req = "position")),
+             error = "dataset 1: position must hold finite whole numbers above 0"),
+    "wakefield: an element req names passes when its values are good" =
+        list(d = D1, args = c(wakefield, list(req = "position"))),
+    "wakefield: LD is checked when req names it" =
+        list(d = local({
+                 d <- D1
+                 d$LD <- d$LD * 1.5
+                 d
+             }),
+             args = c(wakefield, list(req = "LD")),
+             error = "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"),
+    "wakefield: z is checked when req names it" =
+        list(d = local({
+                 d <- D1
+                 d$z <- rep(Inf, length(d$snp))
+                 d
+             }),
+             args = c(wakefield, list(req = "z")),
+             error = "dataset 1: z must be a finite number for each snp"),
+    "with no engine, z is checked when req names it" =
+        list(d = local({
+                 d <- D1
+                 d$z <- rep(Inf, length(d$snp))
+                 d
+             }),
+             args = list(req = "z"),
+             error = "dataset 1: z must be a finite number for each snp"),
+    ## a dataset with one snp, and an LD that covers more
+    "one snp and a larger LD pass" =
+        list(d = list(snp = "s1", LD = D1$LD[1:4, 1:4])),
+    "susie: one snp and a larger LD pass" =
+        list(d = list(snp = "s1", z = 5, LD = D1$LD[1:4, 1:4], N = D1$N),
+             args = susie),
+    "one snp and a larger LD that is no correlation matrix is refused" =
+        list(d = list(snp = "s1", LD = D1$LD[1:4, 1:4] * 1.5),
+             error = "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"),
     ## datasets that fail two checks
     "a wrong type and duplicated snps" =
         list(d = local({
