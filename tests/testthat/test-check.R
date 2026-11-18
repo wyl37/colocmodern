@@ -478,12 +478,47 @@ cases <- list(
                  d
              }),
              error = "dataset 1: sdY must be a single finite number above 0"),
-    "with no engine, z is not checked" =
+    "with no engine, z has no missing values" =
         list(d = local({
                  d <- D1
                  d$z <- rep(NA_real_, length(d$snp))
                  d
+             }),
+             error = "dataset 1: z must be a finite number for each snp"),
+    "with no engine, z is finite" =
+        list(d = local({
+                 d <- z1
+                 d$z[1] <- -Inf
+                 d
+             }),
+             error = "dataset 1: z must be a finite number for each snp"),
+    "with no engine, z is numeric" =
+        list(d = local({
+                 d <- z1
+                 d$z <- as.character(d$z)
+                 d
+             }),
+             error = "dataset 1: z must be a finite number for each snp"),
+    "with no engine, z has a value for each snp" =
+        list(d = local({
+                 d <- z1
+                 d$z <- d$z[-1]
+                 d
+             }),
+             error = "dataset 1: snp has 500 values but z has 499"),
+    "wakefield: z's values are not read" =
+        list(args = wakefield, d = local({
+                 d <- D1
+                 d$z <- rep(NA_real_, length(d$snp))
+                 d
              })),
+    "wakefield: z has a value for each snp" =
+        list(args = wakefield, d = local({
+                 d <- D1
+                 d$z <- rep(1, length(d$snp) - 1)
+                 d
+             }),
+             error = "dataset 1: snp has 500 values but z has 499"),
     "with no engine, a dataset with only what SuSiE reads passes" =
         list(d = z1),
     "with no engine, the warning for a dataset without beta or p-values comes from z" =
@@ -642,7 +677,7 @@ cases <- list(
                  d$z <- d$z[-1]
                  d
              }),
-             error = "dataset 1: z must be a finite number for each snp"),
+             error = "dataset 1: snp has 500 values but z has 499"),
     "susie: with z, beta is not read" =
         list(args = susie, d = local({
                  d <- D1
@@ -702,14 +737,6 @@ cases <- list(
                  d
              }),
              args = c(wakefield, list(req = "z")),
-             error = "dataset 1: z must be a finite number for each snp"),
-    "with no engine, z is checked when req names it" =
-        list(d = local({
-                 d <- D1
-                 d$z <- rep(Inf, length(d$snp))
-                 d
-             }),
-             args = list(req = "z"),
              error = "dataset 1: z must be a finite number for each snp"),
     ## a dataset with one snp, and an LD that covers more
     "one snp and a larger LD pass" =

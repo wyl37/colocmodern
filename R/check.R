@@ -49,7 +49,7 @@
 ##' the same length.
 ##'
 ##' It then checks the values of some elements. With `engine = "none"`,
-##' these are all the elements that are given, apart from `z`. With
+##' these are all the elements that are given. With
 ##' `"wakefield"` or `"susie"`, they are the elements that engine reads, which
 ##' must all be given. So a check for `"wakefield"` leaves `LD` alone, and
 ##' checking `LD` takes far longer than checking the rest of a dataset. An
@@ -68,7 +68,7 @@
 ##'   column names, in the same order, and cover every snp. For the dataset's
 ##'   snps it must be a correlation matrix, with values from -1 to 1,
 ##'   symmetric, and 1 on the diagonal;
-##' * `z`, which only `"susie"` reads, must be a finite number for each snp.
+##' * `z` must be a finite number for each snp.
 ##'
 ##' It also warns, without stopping, when no p-value is below `warn.minp`, as
 ##' the trait may then have no association in the region. A [coloc_dataset()]
@@ -124,8 +124,8 @@ check_dataset <- function(d,
         fail("snp should be a character vector but is ", .what_is(d$snp))
     if (any(duplicated(d$snp)))
         fail("duplicated snps found")
-    ## each per-snp element but z has as many values as snp
-    for (v in intersect(setdiff(.per_snp_items, "z"), nd))
+    ## each per-snp element has as many values as snp
+    for (v in intersect(.per_snp_items, nd))
         if (length(d[[v]]) != length(d$snp))
             fail("snp has ", length(d$snp), if (length(d$snp) == 1L) " value" else " values",
                  " but ", v, " has ", length(d[[v]]))
@@ -201,16 +201,16 @@ check_dataset <- function(d,
         (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
         fail("sdY must be a single finite number above 0")
     if (reads("z") &&
-        !(is.numeric(d$z) && length(d$z) == length(d$snp) && all(is.finite(d$z))))
+        !(is.numeric(d$z) && all(is.finite(d$z))))
         fail("z must be a finite number for each snp")
 
     ## a warning when no p-value is below warn.minp; a coloc_dataset had it
     ## when it was made. The p-values come from beta and varbeta, or else
-    ## pvalues, or else z, which is read here only when it holds numbers
+    ## pvalues, or else z
     if (!inherits(d, "coloc_dataset")) {
         p <- if (reads("beta") && reads("varbeta")) pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2
              else if (reads("pvalues")) d$pvalues
-             else if ("z" %in% nd && is.numeric(d$z) && !anyNA(d$z)) pnorm(-abs(d$z)) * 2
+             else if (reads("z")) pnorm(-abs(d$z)) * 2
         if (length(p) && min(p) > warn.minp)
             warning(warningCondition(
                 paste0(prefix, "the smallest p-value is ", format.pval(min(p)),
@@ -232,8 +232,8 @@ check_dataset <- function(d,
 ## adds an entry here, and the rules for each element's values stay as they
 ## are. The first entry is check_dataset()'s default.
 .engine_reads <- list(
-    ## no engine: every element given, apart from z
-    none = function(d, nd, fail) setdiff(nd, "z"),
+    ## no engine: every element given
+    none = function(d, nd, fail) nd,
     ## type, then beta and varbeta, or else pvalues, MAF and N
     wakefield = function(d, nd, fail) {
         if (!("type" %in% nd))
