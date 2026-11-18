@@ -116,6 +116,14 @@ new_coloc_dataset <- function(d, warn.minp = 1e-6) {
     structure(d, class = c("coloc_dataset", "list"))
 }
 
+## Stops unless x is a coloc_dataset, for the functions that take only one.
+## arg is the argument's name, which the message begins with.
+.need_coloc_dataset <- function(x, arg) {
+    if (!inherits(x, "coloc_dataset"))
+        stop(arg, " is ", .what_is(x), ", not a coloc_dataset; ",
+             "make one with coloc_dataset() or as_coloc_dataset()", call. = FALSE)
+}
+
 ##' @export
 print.coloc_dataset <- function(x, ...) {
     ## the type by its label, as check_dataset() reads it: identical() would
