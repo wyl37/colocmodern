@@ -4,7 +4,13 @@
 \alias{check_dataset}
 \title{Check a coloc dataset}
 \usage{
-check_dataset(d, suffix = "", req = c("type", "snp"), warn.minp = 1e-06)
+check_dataset(
+  d,
+  suffix = "",
+  engine = names(.engine_reads),
+  req = NULL,
+  warn.minp = 1e-06
+)
 }
 \arguments{
 \item{d}{a dataset, as a list or a \code{\link[=coloc_dataset]{coloc_dataset()}}, but not a data.frame}
@@ -12,7 +18,10 @@ check_dataset(d, suffix = "", req = c("type", "snp"), warn.minp = 1e-06)
 \item{suffix}{a label for the dataset, such as 1 or 2, which begins each
 message as "dataset 1: ". With "" messages have no label}
 
-\item{req}{the elements that must be present}
+\item{engine}{the engine the dataset is checked for, \code{"wakefield"} or
+\code{"susie"}, or \code{"none"}, the default, for no engine}
+
+\item{req}{other elements that must be present, such as \code{"position"}}
 
 \item{warn.minp}{warn when no p-value is below this}
 }
@@ -20,14 +29,14 @@ message as "dataset 1: ". With "" messages have no label}
 \code{NULL} when it finds no problem. Otherwise it stops with an error
 }
 \description{
-\code{check_dataset()} checks that a dataset has the elements coloc needs, and
-that coloc can use their values. It stops at the first problem it finds,
-with a message that names the element and says what is wrong. You seldom
-need to call it, as \code{\link[=coloc_dataset]{coloc_dataset()}} and \code{\link[=as_coloc_dataset]{as_coloc_dataset()}} check a
-dataset when they make it, and \code{\link[=coloc]{coloc()}}, \code{\link[=finemap]{finemap()}} and \code{\link[=wakefield_bf]{wakefield_bf()}}
-check every dataset they are given. Call it yourself to check your datasets before you analyse
-them, for example every region of a study before a loop over the regions,
-or to check a dataset you have changed.
+\code{check_dataset()} checks that coloc can use a dataset. It stops at the
+first problem it finds, with a message that names the element and says
+what is wrong. You seldom need to call it, as \code{\link[=coloc_dataset]{coloc_dataset()}} and
+\code{\link[=as_coloc_dataset]{as_coloc_dataset()}} check a dataset when they make it, and \code{\link[=coloc]{coloc()}},
+\code{\link[=finemap]{finemap()}} and \code{\link[=wakefield_bf]{wakefield_bf()}} check every dataset they are given. Call
+it yourself to check your datasets before you analyse them, for example
+every region of a study before a loop over the regions, or to check a
+dataset you have changed.
 }
 \details{
 A coloc dataset is a list that describes one trait in one region. Some of
@@ -53,36 +62,46 @@ trait;
 \item \code{s}, for a case-control trait, the proportion of samples that are cases;
 \item \code{sdY}, for a quantitative trait, the standard deviation of the trait;
 \item \code{LD}, the correlation matrix of the snps, with snp ids as its row and
-column names, which fine-mapping with SuSiE needs.
+column names.
 }
 
-Which elements are needed depends on the data. Always give \code{type} and
-\code{snp}. Give \code{beta} and \code{varbeta} if you have them. Without them, coloc
-approximates them from \code{pvalues}, \code{MAF} and \code{N}, and a case-control trait
-also needs \code{s}. A quantitative trait given as \code{beta} and \code{varbeta} needs
-\code{sdY}, or \code{MAF} and \code{N} so coloc can estimate \code{sdY}.
+Every dataset needs \code{snp}. Which other elements it needs depends on the
+engine that fine-maps it:
+\itemize{
+\item \code{"wakefield"} needs \code{type}. Give \code{beta} and \code{varbeta} if you have them.
+Without them, it approximates them from \code{pvalues}, \code{MAF} and \code{N}, and a
+case-control trait also needs \code{s}. A quantitative trait given as \code{beta}
+and \code{varbeta} needs \code{sdY}, or \code{MAF} and \code{N} so coloc can estimate \code{sdY}.
+\item \code{"susie"} needs \code{LD} and \code{N}, and either \code{z} or both \code{beta} and
+\code{varbeta}.
+}
 
-\code{check_dataset()} checks in two steps, and stops at the first problem:
-\enumerate{
-\item Each element, wherever it is given. The elements that \code{req} names must
-be present, and no element may have missing values. This step leaves
-\code{z} to \code{\link[=finemap]{finemap()}}, which reads it and checks it when
-\code{engine = "susie"}. \code{type} must be given,
-as one value, \code{"quant"} or \code{"cc"}. \code{s} must be one number between 0 and
-1, \code{MAF} numbers above 0 and below 1, and \code{N} one finite number above 1.
-Each snp id must appear once, and \code{snp} must not be a factor. The
-per-snp elements must have the same length. \code{beta} and \code{varbeta}, when
-both are given, must have no infinite values, and \code{varbeta} must have no
-zeros. \code{LD} must be a numeric matrix and square, with row names that
-match its column names, in the same order, and cover every snp. For the
-dataset's snps it must be a correlation matrix, with values from -1 to
-1, symmetric, and 1 on the diagonal.
-\item What coloc reads on the dataset's route. Without both \code{beta} and
-\code{varbeta}, coloc reads \code{pvalues}, which must be numbers above 0 and at
-most 1, \code{MAF} and \code{N}, and \code{s} for a case-control trait. With them,
-\code{beta} and \code{varbeta} must be numeric and \code{varbeta} not negative, and a
-quantitative trait needs \code{sdY}, one finite number above 0, or \code{MAF} and
-\code{N} so coloc can estimate it.
+\code{check_dataset()} first checks the dataset's structure: it is a list and
+not a data.frame, \code{snp} is given, with each snp id once and not as a
+factor, the elements \code{req} names are given, and the per-snp elements have
+the same length.
+
+It then checks the values of some elements. With \code{engine = "none"},
+these are all the elements that are given, apart from \code{z}. With
+\code{"wakefield"} or \code{"susie"}, they are the elements that engine reads, which
+must all be given. So a check for \code{"wakefield"} leaves \code{LD} alone, and
+checking \code{LD} takes far longer than checking the rest of a dataset. An
+element whose values are checked must have no missing values, and:
+\itemize{
+\item \code{type} must be one value, \code{"quant"} or \code{"cc"};
+\item \code{s} must be one number between 0 and 1;
+\item \code{MAF} must be numbers above 0 and below 1;
+\item \code{N} must be one finite number above 1;
+\item \code{beta} and \code{varbeta} must be numeric, with no infinite values, and
+\code{varbeta} must be above 0;
+\item \code{pvalues} must be numbers above 0 and at most 1;
+\item \code{sdY} must be one finite number above 0;
+\item \code{position} must hold finite whole numbers above 0;
+\item \code{LD} must be a numeric matrix and square, with row names that match its
+column names, in the same order, and cover every snp. For the dataset's
+snps it must be a correlation matrix, with values from -1 to 1,
+symmetric, and 1 on the diagonal;
+\item \code{z}, which only \code{"susie"} reads, must be a finite number for each snp.
 }
 
 It also warns, without stopping, when no p-value is below \code{warn.minp}, as
@@ -92,6 +111,7 @@ gets this warning once, when it is made.
 \examples{
 data(coloc_test_data)
 check_dataset(coloc_test_data$D1)     # NULL: no problems found
+check_dataset(coloc_test_data$D1, engine = "susie")
 bad <- coloc_test_data$D1
 bad$beta[1] <- NA
 try(check_dataset(bad, 1))

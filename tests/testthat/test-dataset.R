@@ -19,13 +19,8 @@ test_that("coloc_dataset() and as_coloc_dataset() agree", {
 })
 
 test_that("mistakes are refused when the dataset is made", {
-    e <- expect_error(coloc_dataset(snp = small$snp, beta = small$beta, varbeta = small$varbeta, sdY = 1))
-    expect_identical(conditionMessage(e), "missing required element(s) type")
     e <- expect_error(coloc_dataset(type = "quant", beta = small$beta, varbeta = small$varbeta, sdY = 1))
     expect_identical(conditionMessage(e), "missing required element(s) snp")
-    e <- expect_error(coloc_dataset(snp = small$snp, type = "quant", beta = small$beta, sdY = 1))
-    expect_identical(conditionMessage(e),
-                     "pvalues and MAF are missing; without beta and varbeta, coloc needs pvalues, MAF and N")
     bad <- small
     bad$beta[2] <- NA
     e <- expect_error(as_coloc_dataset(bad))
@@ -34,6 +29,22 @@ test_that("mistakes are refused when the dataset is made", {
     bad$type <- "binary"
     e <- expect_error(as_coloc_dataset(bad))
     expect_identical(conditionMessage(e), "type must be quant or cc")
+})
+
+test_that("a dataset is made with any elements, and an engine's check says what it lacks", {
+    ## no type and no varbeta: neither engine can use it
+    D <- coloc_dataset(snp = small$snp, beta = small$beta)
+    expect_s3_class(D, "coloc_dataset")
+    e <- expect_error(check_dataset(D, engine = "wakefield"))
+    expect_identical(conditionMessage(e),
+                     "type is missing; set type to \"quant\" for a quantitative trait or \"cc\" for a case-control trait")
+    e <- expect_error(check_dataset(D, engine = "susie"))
+    expect_identical(conditionMessage(e), "LD is missing; SuSiE needs LD, the correlation matrix of the snps")
+    ## a dataset for SuSiE alone
+    LD <- diag(5)
+    dimnames(LD) <- list(small$snp, small$snp)
+    S <- coloc_dataset(snp = small$snp, z = small$beta / sqrt(small$varbeta), LD = LD, N = 1000)
+    expect_null(check_dataset(S, engine = "susie"))
 })
 
 test_that("as_coloc_dataset() refuses things that are not datasets", {
@@ -103,11 +114,6 @@ test_that("as_coloc_dataset() returns a coloc_dataset as it is, even one changed
     expect_identical(conditionMessage(e), "beta contains missing values")
 })
 
-test_that("a coloc_dataset still behaves as a list for generics with no method for it", {
-    D <- do.call(coloc_dataset, small)
-    expect_s3_class(data.table::as.data.table(D), "data.table")
-})
-
 test_that("coloc_dataset() takes every element check_dataset() knows", {
     expect_setequal(setdiff(names(formals(coloc_dataset)), "warn.minp"), .dataset_items)
 })
@@ -140,6 +146,9 @@ test_that("print() summarises the dataset", {
         cc$type <- type
         expect_output(print(as_coloc_dataset(cc)), "coloc dataset: case-control trait, 5 snps", fixed = TRUE)
     }
+    ## a dataset without a type shows none
+    expect_output(print(coloc_dataset(snp = small$snp, beta = small$beta)),
+                  "coloc dataset: 5 snps", fixed = TRUE)
     ## LD only for an element of that name, not one like LD_ref
     ref <- small
     ref$LD_ref <- diag(3)

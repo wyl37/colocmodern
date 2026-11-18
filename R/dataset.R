@@ -8,12 +8,6 @@
 ## ignores anything else.
 .dataset_items <- c(.per_snp_items, "N", "type", "s", "sdY", "LD")
 
-## The elements each engine needs, as check_dataset()'s req. "wakefield" is
-## also what a dataset is checked for when it is made, check_dataset()'s
-## default.
-.dataset_uses <- list(wakefield = c("type", "snp"),
-                      susie     = c("beta", "varbeta", "LD", "snp", "N"))
-
 ##' Make a coloc dataset
 ##'
 ##' A coloc dataset holds one trait's summary statistics for one region, in
@@ -29,12 +23,17 @@
 ##' elements, so code that reads `D$beta` works unchanged. `as_coloc_dataset()`
 ##' keeps elements coloc does not use.
 ##'
-##' Which elements are needed depends on the data, and [check_dataset()] gives
-##' the details. In brief, always give `snp` and `type`, and give `beta` and
-##' `varbeta` if you have them. Without them, give `pvalues`, `MAF` and `N`,
-##' and `s` for a case-control trait. A quantitative trait given as `beta` and
-##' `varbeta` needs `sdY`, or `MAF` and `N` so coloc can estimate it.
-##' Fine-mapping with SuSiE needs `beta`, `varbeta`, `LD` and `N`.
+##' Every dataset needs `snp`. Which other elements it needs depends on the
+##' engine that fine-maps it, and [check_dataset()] gives the details. In
+##' brief, `"wakefield"` needs `type`, and `beta` and `varbeta` if you have
+##' them. Without them, give `pvalues`, `MAF` and `N`, and `s` for a
+##' case-control trait. A quantitative trait given as `beta` and `varbeta`
+##' needs `sdY`, or `MAF` and `N` so coloc can estimate it. `"susie"` needs
+##' `LD` and `N`, and either `z` or both `beta` and `varbeta`.
+##'
+##' A dataset is made with whichever elements you give, and their values are
+##' checked. Whether it has what an engine needs is checked when the engine
+##' runs, or by `check_dataset()` with that `engine`.
 ##'
 ##' If you change a dataset's elements after it is made, coloc's functions
 ##' check it again when they use it. `as_coloc_dataset()` returns a
@@ -79,7 +78,9 @@
 ##' ## mistakes are reported when the dataset is made
 ##' try(coloc_dataset(snp = paste0("s", 1:5),
 ##'                   type = "quant",
-##'                   beta = c(0.1, 0.5, 0.2, 0, 0.05)))
+##'                   beta = c(0.1, 0.5, 0.2, NA, 0.05),
+##'                   varbeta = rep(0.01, 5),
+##'                   sdY = 1))
 coloc_dataset <- function(snp = NULL, type = NULL, beta = NULL, varbeta = NULL,
                           pvalues = NULL, MAF = NULL,
                           position = NULL, N = NULL, s = NULL, sdY = NULL,
@@ -119,9 +120,10 @@ new_coloc_dataset <- function(d, warn.minp = 1e-6) {
 print.coloc_dataset <- function(x, ...) {
     ## the type by its label, as check_dataset() reads it: identical() would
     ## also compare a factor's or a named type's attributes
-    cat("coloc dataset:",
-        if (isTRUE(x$type == "cc")) "case-control" else "quantitative",
-        "trait,", length(x$snp), "snps\n")
+    cat("coloc dataset: ",
+        if (!is.null(x[["type"]]))
+            paste(if (isTRUE(x$type == "cc")) "case-control" else "quantitative", "trait, "),
+        length(x$snp), " snps\n", sep = "")
     cat("  per-snp:", paste(intersect(setdiff(.per_snp_items, "snp"), names(x)), collapse = ", "), "\n")
     sc <- unlist(x[intersect(c("N", "s", "sdY"), names(x))])
     if (length(sc))
