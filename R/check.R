@@ -234,7 +234,8 @@ check_dataset <- function(d,
 .engine_reads <- list(
     ## no engine: every element given
     none = function(d, nd, fail) nd,
-    ## type, then beta and varbeta, or else pvalues, MAF and N
+    ## type, then beta and varbeta, or else pvalues, MAF and N, and s for a
+    ## case-control trait
     wakefield = function(d, nd, fail) {
         if (!("type" %in% nd))
             fail('type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait')
@@ -252,15 +253,12 @@ check_dataset <- function(d,
                 fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
             return(c("type", "beta", "varbeta", "MAF", "N"))
         }
-        if (!all(c("pvalues", "MAF") %in% nd))
-            fail(.is_missing(setdiff(c("pvalues", "MAF"), nd)),
-                 "; without beta and varbeta, coloc needs pvalues, MAF and N")
-        if (cc && !("s" %in% nd))
-            fail("s is missing; a case-control dataset without beta and varbeta needs s, ",
-                 "the proportion of samples who are cases")
-        if (!("N" %in% nd))
-            fail("N is missing; without beta and varbeta, coloc needs N, the sample size")
-        c("type", "pvalues", "MAF", "N", if (cc) "s")
+        need <- c("pvalues", "MAF", "N", if (cc) "s")
+        if (!all(need %in% nd))
+            fail(.is_missing(setdiff(need, nd)), "; without beta and varbeta, ",
+                 if (cc) "a case-control dataset needs pvalues, MAF, N and s, the proportion of samples who are cases"
+                 else "coloc needs pvalues, MAF and N, the sample size")
+        c("type", need)
     },
     ## LD and N, then z, or else beta and varbeta
     susie = function(d, nd, fail) {

@@ -282,7 +282,7 @@ cases <- list(
                  d$varbeta <- NULL
                  d
              }),
-             error = "dataset 1: pvalues is missing; without beta and varbeta, coloc needs pvalues, MAF and N"),
+             error = "dataset 1: pvalues is missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
     "wakefield: without beta and varbeta, there are p-values" =
         list(args = wakefield, d = local({
                  d <- D1
@@ -290,28 +290,53 @@ cases <- list(
                  d$varbeta <- NULL
                  d
              }),
-             error = "dataset 1: pvalues is missing; without beta and varbeta, coloc needs pvalues, MAF and N"),
+             error = "dataset 1: pvalues is missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
     "wakefield: without beta and varbeta, there is MAF" =
         list(args = wakefield, d = local({
                  d <- pv1
                  d$MAF <- NULL
                  d
              }),
-             error = "dataset 1: MAF is missing; without beta and varbeta, coloc needs pvalues, MAF and N"),
+             error = "dataset 1: MAF is missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
     "wakefield: a case-control trait given as p-values has s" =
         list(args = wakefield, d = local({
                  d <- pv1
                  d$type <- "cc"
                  d
              }),
-             error = "dataset 1: s is missing; a case-control dataset without beta and varbeta needs s, the proportion of samples who are cases"),
+             error = "dataset 1: s is missing; without beta and varbeta, a case-control dataset needs pvalues, MAF, N and s, the proportion of samples who are cases"),
     "wakefield: a trait given as p-values has N" =
         list(args = wakefield, d = local({
                  d <- pv1
                  d$N <- NULL
                  d
              }),
-             error = "dataset 1: N is missing; without beta and varbeta, coloc needs N, the sample size"),
+             error = "dataset 1: N is missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
+    "wakefield: without beta and varbeta, MAF and N are both named" =
+        list(args = wakefield, d = local({
+                 d <- pv1
+                 d$MAF <- NULL
+                 d$N <- NULL
+                 d
+             }),
+             error = "dataset 1: MAF and N are missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
+    "wakefield: a case-control trait as p-values without s or N names both" =
+        list(args = wakefield, d = local({
+                 d <- pv1
+                 d$type <- "cc"
+                 d$N <- NULL
+                 d
+             }),
+             error = "dataset 1: N and s are missing; without beta and varbeta, a case-control dataset needs pvalues, MAF, N and s, the proportion of samples who are cases"),
+    "wakefield: a case-control trait as p-values with s has N" =
+        list(args = wakefield, d = local({
+                 d <- pv1
+                 d$type <- "cc"
+                 d$s <- 0.3
+                 d$N <- NULL
+                 d
+             }),
+             error = "dataset 1: N is missing; without beta and varbeta, a case-control dataset needs pvalues, MAF, N and s, the proportion of samples who are cases"),
     "a trait given as p-values has N above 1" =
         list(d = local({
                  d <- pv1
