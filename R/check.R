@@ -44,12 +44,12 @@
 ##'   `varbeta`.
 ##'
 ##' `check_dataset()` first checks the dataset's structure: it is a list and
-##' not a data.frame, `snp` is given, with each snp id once and not as a
-##' factor, the elements `req` names are given, and the per-snp elements have
+##' not a data.frame, `snp` is given, as a character vector with each snp id
+##' once, the elements `req` names are given, and the per-snp elements have
 ##' the same length.
 ##'
 ##' It then checks the values of some elements. With `engine = "none"`,
-##' these are all the elements that are given, apart from `z`. With
+##' these are all the elements that are given. With
 ##' `"wakefield"` or `"susie"`, they are the elements that engine reads, which
 ##' must all be given. So a check for `"wakefield"` leaves `LD` alone, and
 ##' checking `LD` takes far longer than checking the rest of a dataset. An
@@ -68,7 +68,7 @@
 ##'   column names, in the same order, and cover every snp. For the dataset's
 ##'   snps it must be a correlation matrix, with values from -1 to 1,
 ##'   symmetric, and 1 on the diagonal;
-##' * `z`, which only `"susie"` reads, must be a finite number for each snp.
+##' * `z` must be a finite number for each snp.
 ##'
 ##' It also warns, without stopping, when no p-value is below `warn.minp`, as
 ##' the trait may then have no association in the region. A [coloc_dataset()]
@@ -79,7 +79,8 @@
 ##'     message as "dataset 1: ". With "" messages have no label
 ##' @param engine the engine the dataset is checked for, `"wakefield"` or
 ##'     `"susie"`, or `"none"`, the default, for no engine
-##' @param req other elements that must be present, such as `"position"`
+##' @param req other elements that must be present and whose values are
+##'     checked, such as `"position"`
 ##' @param warn.minp warn when no p-value is below this
 ##' @return `NULL` when it finds no problem. Otherwise it stops with an error
 ##' @importFrom stats pnorm
@@ -118,19 +119,21 @@ check_dataset <- function(d,
     absent <- setdiff(c("snp", req), nd)
     if (length(absent))
         fail("missing required element(s) ", paste(absent, collapse = ", "))
+    ## LD's dimnames are character, and numeric ids would index LD by position
+    if (!is.character(d$snp))
+        fail("snp should be a character vector but is ", .what_is(d$snp))
     if (any(duplicated(d$snp)))
         fail("duplicated snps found")
-    if (is.factor(d$snp))
-        fail("snp should be a character vector but is a factor")
-    ## each per-snp element but z has as many values as snp
-    for (v in intersect(setdiff(.per_snp_items, "z"), nd))
+    ## each per-snp element has as many values as snp
+    for (v in intersect(.per_snp_items, nd))
         if (length(d[[v]]) != length(d$snp))
             fail("snp has ", length(d$snp), if (length(d$snp) == 1L) " value" else " values",
                  " but ", v, " has ", length(d[[v]]))
 
     ## 2. The values of the elements in `read`, which are what the engine
-    ## reads. The engine's entry stops when an element it needs is absent.
-    read <- c("snp", .engine_reads[[engine]](d, nd, fail))
+    ## reads and what req names. The engine's entry stops when an element it
+    ## needs is absent.
+    read <- union(c("snp", req), .engine_reads[[engine]](d, nd, fail))
     reads <- function(v) v %in% read
     ## no missing values - make people clean their own data rather than make
     ## assumptions here for datasets I don't know. z has its own rule, below
@@ -179,7 +182,7 @@ check_dataset <- function(d,
             fail("LD must be a numeric matrix")
         ## only the dataset's snps, copied out only when LD covers more; with
         ## as many, they are the same snps
-        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp] else d$LD
+        LD <- if (ncol(d$LD) > length(d$snp)) d$LD[d$snp, d$snp, drop = FALSE] else d$LD
         if (!.is_correlation(LD))
             fail("LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal")
     }
@@ -198,16 +201,16 @@ check_dataset <- function(d,
         (!is.numeric(d$sdY) || length(d$sdY) != 1L || !is.finite(d$sdY) || d$sdY <= 0))
         fail("sdY must be a single finite number above 0")
     if (reads("z") &&
-        !(is.numeric(d$z) && length(d$z) == length(d$snp) && all(is.finite(d$z))))
+        !(is.numeric(d$z) && all(is.finite(d$z))))
         fail("z must be a finite number for each snp")
 
     ## a warning when no p-value is below warn.minp; a coloc_dataset had it
     ## when it was made. The p-values come from beta and varbeta, or else
-    ## pvalues, or else z, which is read here only when it holds numbers
+    ## pvalues, or else z
     if (!inherits(d, "coloc_dataset")) {
         p <- if (reads("beta") && reads("varbeta")) pnorm(-abs(d$beta / sqrt(d$varbeta))) * 2
              else if (reads("pvalues")) d$pvalues
-             else if ("z" %in% nd && is.numeric(d$z) && !anyNA(d$z)) pnorm(-abs(d$z)) * 2
+             else if (reads("z")) pnorm(-abs(d$z)) * 2
         if (length(p) && min(p) > warn.minp)
             warning(warningCondition(
                 paste0(prefix, "the smallest p-value is ", format.pval(min(p)),
@@ -229,9 +232,10 @@ check_dataset <- function(d,
 ## adds an entry here, and the rules for each element's values stay as they
 ## are. The first entry is check_dataset()'s default.
 .engine_reads <- list(
-    ## no engine: every element given, apart from z
-    none = function(d, nd, fail) setdiff(nd, "z"),
-    ## type, then beta and varbeta, or else pvalues, MAF and N
+    ## no engine: every element given
+    none = function(d, nd, fail) nd,
+    ## type, then beta and varbeta, or else pvalues, MAF and N, and s for a
+    ## case-control trait
     wakefield = function(d, nd, fail) {
         if (!("type" %in% nd))
             fail('type is missing; set type to "quant" for a quantitative trait or "cc" for a case-control trait')
@@ -249,15 +253,12 @@ check_dataset <- function(d,
                 fail("must give sdY for type quant, or, if sdY unknown, MAF and N so it can be estimated")
             return(c("type", "beta", "varbeta", "MAF", "N"))
         }
-        if (!all(c("pvalues", "MAF") %in% nd))
-            fail(.is_missing(setdiff(c("pvalues", "MAF"), nd)),
-                 "; without beta and varbeta, coloc needs pvalues, MAF and N")
-        if (cc && !("s" %in% nd))
-            fail("s is missing; a case-control dataset without beta and varbeta needs s, ",
-                 "the proportion of samples who are cases")
-        if (!("N" %in% nd))
-            fail("N is missing; without beta and varbeta, coloc needs N, the sample size")
-        c("type", "pvalues", "MAF", "N", if (cc) "s")
+        need <- c("pvalues", "MAF", "N", if (cc) "s")
+        if (!all(need %in% nd))
+            fail(.is_missing(setdiff(need, nd)), "; without beta and varbeta, ",
+                 if (cc) "a case-control dataset needs pvalues, MAF, N and s, the proportion of samples who are cases"
+                 else "coloc needs pvalues, MAF and N, the sample size")
+        c("type", need)
     },
     ## LD and N, then z, or else beta and varbeta
     susie = function(d, nd, fail) {

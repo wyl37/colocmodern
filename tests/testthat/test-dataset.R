@@ -128,6 +128,13 @@ test_that("a dataset may carry z, which print() lists among the per-snp elements
     expect_true("  other elements: chr " %in% out)
 })
 
+test_that("coloc_dataset() checks z when it is given", {
+    z <- small$beta / sqrt(small$varbeta)
+    z[2] <- Inf
+    e <- expect_error(do.call(coloc_dataset, c(small, list(z = z))))
+    expect_identical(conditionMessage(e), "z must be a finite number for each snp")
+})
+
 test_that("print() summarises the dataset", {
     D <- do.call(coloc_dataset, small)
     expect_output(print(D), "quantitative trait, 5 snps")

@@ -173,6 +173,35 @@ cases <- list(
                  d
              }),
              error = "dataset 1: snp should be a character vector but is a factor"),
+    "snp is not numeric" =
+        list(d = local({
+                 d <- D1
+                 d$snp <- seq_along(d$snp)
+                 d
+             }),
+             error = "dataset 1: snp should be a character vector but is a numeric vector"),
+    "snp is not numeric, when LD's names would match it" =
+        list(d = list(snp = c(1, 3),
+                      LD = matrix(c(1, 0, 0, 0, 1, 2, 0, 2, 1), 3,
+                                  dimnames = list(c("2", "1", "3"), c("2", "1", "3")))),
+             error = "dataset 1: snp should be a character vector but is a numeric vector"),
+    "snp is not a list" =
+        list(d = local({
+                 d <- D1
+                 d$snp <- as.list(d$snp)
+                 d
+             }),
+             error = "dataset 1: snp should be a character vector but is a list"),
+    "snp is not logical" =
+        list(d = list(snp = c(TRUE, FALSE)),
+             error = "dataset 1: snp should be a character vector but is a logical vector"),
+    "a snp that is not a character vector is refused before its ids are compared" =
+        list(d = local({
+                 d <- D1
+                 d$snp <- rep(1L, length(d$snp))
+                 d
+             }),
+             error = "dataset 1: snp should be a character vector but is a numeric vector"),
     "MAF is above 0" =
         list(d = local({
                  d <- D1
@@ -253,7 +282,7 @@ cases <- list(
                  d$varbeta <- NULL
                  d
              }),
-             error = "dataset 1: pvalues is missing; without beta and varbeta, coloc needs pvalues, MAF and N"),
+             error = "dataset 1: pvalues is missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
     "wakefield: without beta and varbeta, there are p-values" =
         list(args = wakefield, d = local({
                  d <- D1
@@ -261,28 +290,53 @@ cases <- list(
                  d$varbeta <- NULL
                  d
              }),
-             error = "dataset 1: pvalues is missing; without beta and varbeta, coloc needs pvalues, MAF and N"),
+             error = "dataset 1: pvalues is missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
     "wakefield: without beta and varbeta, there is MAF" =
         list(args = wakefield, d = local({
                  d <- pv1
                  d$MAF <- NULL
                  d
              }),
-             error = "dataset 1: MAF is missing; without beta and varbeta, coloc needs pvalues, MAF and N"),
+             error = "dataset 1: MAF is missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
     "wakefield: a case-control trait given as p-values has s" =
         list(args = wakefield, d = local({
                  d <- pv1
                  d$type <- "cc"
                  d
              }),
-             error = "dataset 1: s is missing; a case-control dataset without beta and varbeta needs s, the proportion of samples who are cases"),
+             error = "dataset 1: s is missing; without beta and varbeta, a case-control dataset needs pvalues, MAF, N and s, the proportion of samples who are cases"),
     "wakefield: a trait given as p-values has N" =
         list(args = wakefield, d = local({
                  d <- pv1
                  d$N <- NULL
                  d
              }),
-             error = "dataset 1: N is missing; without beta and varbeta, coloc needs N, the sample size"),
+             error = "dataset 1: N is missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
+    "wakefield: without beta and varbeta, MAF and N are both named" =
+        list(args = wakefield, d = local({
+                 d <- pv1
+                 d$MAF <- NULL
+                 d$N <- NULL
+                 d
+             }),
+             error = "dataset 1: MAF and N are missing; without beta and varbeta, coloc needs pvalues, MAF and N, the sample size"),
+    "wakefield: a case-control trait as p-values without s or N names both" =
+        list(args = wakefield, d = local({
+                 d <- pv1
+                 d$type <- "cc"
+                 d$N <- NULL
+                 d
+             }),
+             error = "dataset 1: N and s are missing; without beta and varbeta, a case-control dataset needs pvalues, MAF, N and s, the proportion of samples who are cases"),
+    "wakefield: a case-control trait as p-values with s has N" =
+        list(args = wakefield, d = local({
+                 d <- pv1
+                 d$type <- "cc"
+                 d$s <- 0.3
+                 d$N <- NULL
+                 d
+             }),
+             error = "dataset 1: N is missing; without beta and varbeta, a case-control dataset needs pvalues, MAF, N and s, the proportion of samples who are cases"),
     "a trait given as p-values has N above 1" =
         list(d = local({
                  d <- pv1
@@ -449,12 +503,47 @@ cases <- list(
                  d
              }),
              error = "dataset 1: sdY must be a single finite number above 0"),
-    "with no engine, z is not checked" =
+    "with no engine, z has no missing values" =
         list(d = local({
                  d <- D1
                  d$z <- rep(NA_real_, length(d$snp))
                  d
+             }),
+             error = "dataset 1: z must be a finite number for each snp"),
+    "with no engine, z is finite" =
+        list(d = local({
+                 d <- z1
+                 d$z[1] <- -Inf
+                 d
+             }),
+             error = "dataset 1: z must be a finite number for each snp"),
+    "with no engine, z is numeric" =
+        list(d = local({
+                 d <- z1
+                 d$z <- as.character(d$z)
+                 d
+             }),
+             error = "dataset 1: z must be a finite number for each snp"),
+    "with no engine, z has a value for each snp" =
+        list(d = local({
+                 d <- z1
+                 d$z <- d$z[-1]
+                 d
+             }),
+             error = "dataset 1: snp has 500 values but z has 499"),
+    "wakefield: z's values are not read" =
+        list(args = wakefield, d = local({
+                 d <- D1
+                 d$z <- rep(NA_real_, length(d$snp))
+                 d
              })),
+    "wakefield: z has a value for each snp" =
+        list(args = wakefield, d = local({
+                 d <- D1
+                 d$z <- rep(1, length(d$snp) - 1)
+                 d
+             }),
+             error = "dataset 1: snp has 500 values but z has 499"),
     "with no engine, a dataset with only what SuSiE reads passes" =
         list(d = z1),
     "with no engine, the warning for a dataset without beta or p-values comes from z" =
@@ -613,7 +702,7 @@ cases <- list(
                  d$z <- d$z[-1]
                  d
              }),
-             error = "dataset 1: z must be a finite number for each snp"),
+             error = "dataset 1: snp has 500 values but z has 499"),
     "susie: with z, beta is not read" =
         list(args = susie, d = local({
                  d <- D1
@@ -648,6 +737,41 @@ cases <- list(
     "req sets the required elements" =
         list(d = D1, args = list(req = c("snp", "pvalues")),
              error = "dataset 1: missing required element(s) pvalues"),
+    "wakefield: the values of an element req names are checked" =
+        list(d = local({
+                 d <- D1
+                 d$position <- rep(c(-5, 2.5), length.out = length(d$snp))
+                 d
+             }),
+             args = c(wakefield, list(req = "position")),
+             error = "dataset 1: position must hold finite whole numbers above 0"),
+    "wakefield: an element req names passes when its values are good" =
+        list(d = D1, args = c(wakefield, list(req = "position"))),
+    "wakefield: LD is checked when req names it" =
+        list(d = local({
+                 d <- D1
+                 d$LD <- d$LD * 1.5
+                 d
+             }),
+             args = c(wakefield, list(req = "LD")),
+             error = "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"),
+    "wakefield: z is checked when req names it" =
+        list(d = local({
+                 d <- D1
+                 d$z <- rep(Inf, length(d$snp))
+                 d
+             }),
+             args = c(wakefield, list(req = "z")),
+             error = "dataset 1: z must be a finite number for each snp"),
+    ## a dataset with one snp, and an LD that covers more
+    "one snp and a larger LD pass" =
+        list(d = list(snp = "s1", LD = D1$LD[1:4, 1:4])),
+    "susie: one snp and a larger LD pass" =
+        list(d = list(snp = "s1", z = 5, LD = D1$LD[1:4, 1:4], N = D1$N),
+             args = susie),
+    "one snp and a larger LD that is no correlation matrix is refused" =
+        list(d = list(snp = "s1", LD = D1$LD[1:4, 1:4] * 1.5),
+             error = "dataset 1: LD must be a correlation matrix: values in [-1, 1], symmetric, with 1 on the diagonal"),
     ## datasets that fail two checks
     "a wrong type and duplicated snps" =
         list(d = local({

@@ -21,7 +21,8 @@ message as "dataset 1: ". With "" messages have no label}
 \item{engine}{the engine the dataset is checked for, \code{"wakefield"} or
 \code{"susie"}, or \code{"none"}, the default, for no engine}
 
-\item{req}{other elements that must be present, such as \code{"position"}}
+\item{req}{other elements that must be present and whose values are
+checked, such as \code{"position"}}
 
 \item{warn.minp}{warn when no p-value is below this}
 }
@@ -77,12 +78,12 @@ and \code{varbeta} needs \code{sdY}, or \code{MAF} and \code{N} so coloc can est
 }
 
 \code{check_dataset()} first checks the dataset's structure: it is a list and
-not a data.frame, \code{snp} is given, with each snp id once and not as a
-factor, the elements \code{req} names are given, and the per-snp elements have
+not a data.frame, \code{snp} is given, as a character vector with each snp id
+once, the elements \code{req} names are given, and the per-snp elements have
 the same length.
 
 It then checks the values of some elements. With \code{engine = "none"},
-these are all the elements that are given, apart from \code{z}. With
+these are all the elements that are given. With
 \code{"wakefield"} or \code{"susie"}, they are the elements that engine reads, which
 must all be given. So a check for \code{"wakefield"} leaves \code{LD} alone, and
 checking \code{LD} takes far longer than checking the rest of a dataset. An
@@ -101,7 +102,7 @@ element whose values are checked must have no missing values, and:
 column names, in the same order, and cover every snp. For the dataset's
 snps it must be a correlation matrix, with values from -1 to 1,
 symmetric, and 1 on the diagonal;
-\item \code{z}, which only \code{"susie"} reads, must be a finite number for each snp.
+\item \code{z} must be a finite number for each snp.
 }
 
 It also warns, without stopping, when no p-value is below \code{warn.minp}, as
