@@ -16,8 +16,8 @@
 ##' list that holds them, such as a dataset made for the coloc package. Both
 ##' check the dataset with [check_dataset()], so a mistake is reported where
 ##' the dataset is made, not later inside [coloc()]. Make your datasets with
-##' them before you call [finemap()], [coloc()] or [wakefield_bf()], which
-##' stop when given a plain list.
+##' them before you call [finemap()] or [coloc()], which stop when given a
+##' plain list.
 ##'
 ##' The result has class `"coloc_dataset"`, but is still a list with the same
 ##' elements, so code that reads `D$beta` works unchanged. `as_coloc_dataset()`

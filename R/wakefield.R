@@ -4,7 +4,6 @@
 ##' snp in a dataset, on the log scale. Each is the evidence for an effect at
 ##' that snp against no effect. [finemap()] computes these with
 ##' `engine = "wakefield"`, and [coloc()] compares the two traits snp by snp.
-##' Call `wakefield_bf()` to see which snps carry one trait's evidence.
 ##'
 ##' Wakefield showed we could get ABF as
 ##'
@@ -41,11 +40,7 @@
 ##' [check_dataset()], which gives more detail on how to structure a coloc dataset
 ##' @author Wei-Yu Lin, Claudia Giambartolomei, Vincent Plagnol, Chris Wallace
 ##' @importFrom stats qnorm lm coef
-##' @export
-##' @examples
-##' data(coloc_test_data)
-##' D1 <- as_coloc_dataset(coloc_test_data$D1)
-##' head(wakefield_bf(D1))
+##' @noRd
 wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
     .need_coloc_dataset(d, "d")
     if (!is.numeric(effect_priors) ||

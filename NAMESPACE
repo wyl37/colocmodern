@@ -4,7 +4,6 @@ S3method(print,coloc_dataset)
 export(as_coloc_dataset)
 export(check_dataset)
 export(coloc_dataset)
-export(wakefield_bf)
 importFrom(stats,
   coef,
   lm,

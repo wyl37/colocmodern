@@ -3,11 +3,10 @@
 ##' `check_dataset()` checks that coloc can use a dataset. It stops at the
 ##' first problem it finds, with a message that names the element and says
 ##' what is wrong. You seldom need to call it, as [coloc_dataset()] and
-##' [as_coloc_dataset()] check a dataset when they make it, and [coloc()],
-##' [finemap()] and [wakefield_bf()] check every dataset they are given. Call
-##' it yourself to check your datasets before you analyse them, for example
-##' every region of a study before a loop over the regions, or to check a
-##' dataset you have changed.
+##' [as_coloc_dataset()] check a dataset when they make it, and [coloc()] and
+##' [finemap()] check every dataset they are given. Call it yourself to check
+##' your datasets before you analyse them, for example every region of a study
+##' before a loop over the regions, or to check a dataset you have changed.
 ##'
 ##' A coloc dataset is a list that describes one trait in one region. Some of
 ##' its elements have one value per snp, and these must all have the same
