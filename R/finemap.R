@@ -80,6 +80,82 @@ validate_coloc_finemap <- function(x) {
     x
 }
 
+##' Fine-map one trait
+##'
+##' `finemap()` gives, for each snp in one trait's dataset, the natural log
+##' Bayes factor for an effect at that snp against no effect. It returns them
+##' as a `coloc_finemap`, which [coloc()] compares with another trait's.
+##'
+##' With `engine = "wakefield"`, the log Bayes factor is Wakefield's
+##' approximate Bayes factor (ABF), which assumes one causal snp:
+##'
+##' log ABF = (log(1 - r) + r z^2) / 2
+##'
+##' where r = W / (W + V), W is the square of the effect prior, V is the
+##' variance of the estimated effect, and z is its z-score. From `beta` and
+##' `varbeta`, z is `beta / sqrt(varbeta)` and V is `varbeta`. Without them,
+##' both are approximated from `pvalues`, `MAF` and `N`, and from `s` for a
+##' case-control trait. Please give `beta` and `varbeta` where available.
+##'
+##' The dataset is checked with [check_dataset()] for the engine on every
+##' call, as it may have changed since it was made.
+##'
+##' @param x a dataset made with [coloc_dataset()] or [as_coloc_dataset()]
+##' @param engine the fine-mapping method, `"wakefield"`
+##' @param ... the engine's settings, each by name. `"wakefield"` takes
+##'     `effect_priors`, the prior standard deviation of a causal snp's
+##'     effect, named by the type of trait: `quant` in units of the trait's
+##'     standard deviation, and `cc` on the log odds ratio scale. The default
+##'     is `c(quant = 0.15, cc = 0.2)`. Do not change it unless you know what
+##'     you are doing. With `beta` and `varbeta`, the prior for a quantitative
+##'     trait is multiplied by `sdY`; when the dataset has no `sdY`, it is
+##'     estimated from `varbeta`, `MAF` and `N`, with a warning. Please give
+##'     `sdY` if known.
+##' @return A `coloc_finemap`, described in [as_coloc_finemap()]. With
+##'     `engine = "wakefield"`, `bf` has one row and `idx` is 1. `snps` holds
+##'     `snp`, `position` when the dataset has it, and `z`, the z-score of each
+##'     snp. `args` holds `effect_priors` as given, or the default.
+##' @references Wakefield J (2009). Bayes factors for genome-wide association
+##'     studies: comparison with P-values. Genetic Epidemiology 33(1),
+##'     79-86. \doi{10.1002/gepi.20359}
+##' @seealso [check_dataset()] for what a dataset holds, and
+##'     [as_coloc_finemap()] for log Bayes factors computed elsewhere
+##' @export
+##' @examples
+##' f <- finemap(as_coloc_dataset(coloc_test_data$D1))
+##' f
+finemap <- function(x, engine = "wakefield", ...) {
+    .need_coloc_dataset(x, "x")
+    engine <- tryCatch(match.arg(engine), error = function(e)
+        stop("engine must be one of: ", paste(eval(formals(finemap)$engine), collapse = ", "),
+             call. = FALSE))
+
+    ## The engine's settings are the arguments of its function after the
+    ## dataset, and args records each one as given, or its default.
+    run <- wakefield_bf
+    args <- lapply(formals(run)[-1L], eval, envir = environment(run))
+    settings <- list(...)
+    given <- names(settings)
+    takes <- paste0("finemap() with engine \"", engine, "\" takes ",
+                    paste(names(args), collapse = ", "))
+    ## a setting with no name would bind by position, to a different setting
+    ## for each engine
+    if (length(settings) > 0L && (is.null(given) || any(given == "")))
+        stop(takes, ", by name; it was given a setting with no name", call. = FALSE)
+    unknown <- setdiff(given, names(args))
+    if (length(unknown) > 0L)
+        stop(takes, "; it was given ", paste(unknown, collapse = ", "), call. = FALSE)
+    args[given] <- settings
+
+    w <- do.call(run, c(list(x), args))
+    snps <- data.frame(snp = w$snp, stringsAsFactors = FALSE)
+    if ("position" %in% names(x))
+        snps$position <- w$position
+    snps$z <- w$z
+    new_coloc_finemap(matrix(w$lABF, nrow = 1L, dimnames = list(NULL, w$snp)),
+                      1L, snps, engine, args)
+}
+
 ##' Make a `coloc_finemap` from log Bayes factors
 ##'
 ##' A `coloc_finemap` holds one trait's fine-mapping in the form [coloc()]

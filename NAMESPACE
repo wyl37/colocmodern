@@ -10,6 +10,7 @@ export(as_coloc_dataset)
 export(as_coloc_finemap)
 export(check_dataset)
 export(coloc_dataset)
+export(finemap)
 importFrom(stats,
   coef,
   lm,

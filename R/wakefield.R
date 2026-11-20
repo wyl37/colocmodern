@@ -19,9 +19,9 @@
 ##' pvalues, MAF and N. Please give beta and varbeta where available.
 ##'
 ##' For a quantitative trait the effect prior is in units of the
-##' trait's standard deviation, so it is multiplied by `sdY`; when the
-##' dataset has no `sdY`, it is estimated from `varbeta`, `MAF` and
-##' `N`, with a warning. Again, please give sdY if known.
+##' trait's standard deviation. With beta and varbeta, it is multiplied by
+##' `sdY`; when the dataset has no `sdY`, it is estimated from `varbeta`,
+##' `MAF` and `N`, with a warning. Again, please give sdY if known.
 ##'
 ##' @param d a dataset made with [coloc_dataset()] or [as_coloc_dataset()]
 ##' @param effect_priors the prior standard deviation of a causal snp's
@@ -42,7 +42,6 @@
 ##' @importFrom stats qnorm lm coef
 ##' @noRd
 wakefield_bf <- function(d, effect_priors = c(quant = 0.15, cc = 0.2)) {
-    .need_coloc_dataset(d, "d")
     if (!is.numeric(effect_priors) ||
         !all(c("quant", "cc") %in% names(effect_priors)) ||
         !all(is.finite(effect_priors[c("quant", "cc")]) &

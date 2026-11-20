@@ -341,3 +341,103 @@ test_that("print() leaves the null column out of the top snp and the count of sn
                        "  signal 1 (idx 1): top snp s2, log BF 3.2",
                        "  signal 2 (idx 2): top snp s4, log BF 6.1"))
 })
+
+## finemap() with engine = "wakefield"
+
+D1 <- coloc_test_data$D1
+D <- as_coloc_dataset(D1)
+## the message finemap() stops with when x is `what`, not a coloc_dataset
+not_dataset <- function(what) {
+    paste0("x is ", what, ", not a coloc_dataset; make one with coloc_dataset() or as_coloc_dataset()")
+}
+
+test_that("finemap() puts wakefield_bf()'s log ABF in a coloc_finemap with one signal", {
+    f <- finemap(D)
+    w <- wakefield_bf(D)
+    expect_s3_class(f, "coloc_finemap")
+    expect_identical(f$bf, matrix(w$lABF, nrow = 1L, dimnames = list(NULL, D1$snp)))
+    expect_identical(f$idx, 1L)
+    expect_identical(f$engine, "wakefield")
+    expect_identical(f$snps, data.frame(snp = D1$snp, position = D1$position, z = w$z,
+                                        stringsAsFactors = FALSE))
+    expect_identical(finemap(D, engine = "wakefield"), f)
+})
+
+test_that("from p-values, MAF and N, z and the log ABF come from the p-values", {
+    d <- as_coloc_dataset(to_pvalues(D1))
+    f <- finemap(d)
+    w <- wakefield_bf(d)
+    expect_identical(f$snps$z, w$z)
+    expect_identical(f$bf[1, ], setNames(w$lABF, D1$snp))
+})
+
+test_that("without position in the dataset, snps has no position column", {
+    f <- finemap(as_coloc_dataset(no_position(D1)))
+    expect_identical(names(f$snps), c("snp", "z"))
+})
+
+test_that("args holds effect_priors as given, or the default", {
+    expect_identical(finemap(D)$args, list(effect_priors = c(quant = 0.15, cc = 0.2)))
+    ep <- c(quant = 0.3, cc = 0.2)
+    f <- finemap(D, effect_priors = ep)
+    expect_identical(f$args, list(effect_priors = ep))
+    expect_identical(f$bf[1, ], setNames(wakefield_bf(D, effect_priors = ep)$lABF, D1$snp))
+    expect_false(isTRUE(all.equal(f$bf, finemap(D)$bf)))
+    e <- expect_error(finemap(D, effect_priors = 1))
+    expect_identical(conditionMessage(e), "effect_priors should be positive numbers named quant and cc")
+})
+
+test_that("finemap() refuses anything but a coloc_dataset, and names x and as_coloc_dataset()", {
+    e <- expect_error(finemap(D1))
+    expect_identical(conditionMessage(e), not_dataset("a list"))
+    expect_null(conditionCall(e))
+    e <- expect_error(finemap(as.data.frame(D1[c("snp", "beta", "varbeta")])))
+    expect_identical(conditionMessage(e), not_dataset("a data.frame"))
+    ## x is checked before the engine and its settings
+    e <- expect_error(finemap(D1, engine = "susie", effect_priors = 1))
+    expect_identical(conditionMessage(e), not_dataset("a list"))
+})
+
+test_that("finemap() refuses an engine other than wakefield", {
+    for (bad in list("susie", c("wakefield", "susie"), 1)) {
+        e <- expect_error(finemap(D, engine = bad))
+        expect_identical(conditionMessage(e), "engine must be one of: wakefield")
+        expect_null(conditionCall(e))
+    }
+    ## the engine is checked before its settings
+    e <- expect_error(finemap(D, engine = "susie", L = 5))
+    expect_identical(conditionMessage(e), "engine must be one of: wakefield")
+})
+
+test_that("finemap() takes only the engine's settings, each by name", {
+    e <- expect_error(finemap(D, L = 5))
+    expect_identical(conditionMessage(e),
+                     'finemap() with engine "wakefield" takes effect_priors; it was given L')
+    expect_null(conditionCall(e))
+    e <- expect_error(finemap(D, L = 5, effect_priors = c(quant = 0.15, cc = 0.2), coverage = 0.9))
+    expect_identical(conditionMessage(e),
+                     'finemap() with engine "wakefield" takes effect_priors; it was given L, coverage')
+    ## a setting with no name would bind by position, to a different setting for each engine
+    for (call in list(quote(finemap(D, "wakefield", c(quant = 0.3, cc = 0.2))),
+                      quote(finemap(D, "wakefield", effect_priors = c(quant = 0.3, cc = 0.2), 5)))) {
+        e <- expect_error(eval(call))
+        expect_identical(conditionMessage(e),
+                         'finemap() with engine "wakefield" takes effect_priors, by name; it was given a setting with no name')
+    }
+})
+
+test_that("finemap() checks a coloc_dataset again, as it may have changed since it was made", {
+    changed <- D
+    changed$beta[1] <- NA
+    e <- expect_error(finemap(changed))
+    expect_identical(conditionMessage(e), "beta contains missing values")
+})
+
+test_that("print() shows a wakefield coloc_finemap", {
+    w <- wakefield_bf(D)
+    top <- which.max(w$lABF)
+    expect_identical(capture.output(print(finemap(D))),
+                     c("coloc finemap: wakefield, 1 signal, 500 snps",
+                       paste0("  signal 1 (idx 1): top snp ", D1$snp[top],
+                              ", log BF ", format(signif(w$lABF[top], 3)))))
+})
