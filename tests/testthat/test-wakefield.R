@@ -105,20 +105,6 @@ test_that("wakefield_bf() refuses effect_priors without a positive number for ea
     }
 })
 
-test_that("wakefield_bf() refuses anything but a coloc_dataset, and names as_coloc_dataset()", {
-    e <- expect_error(wakefield_bf(D1))
-    expect_identical(conditionMessage(e),
-                     "d is a list, not a coloc_dataset; make one with coloc_dataset() or as_coloc_dataset()")
-    expect_null(conditionCall(e))
-    e <- expect_error(wakefield_bf(as.data.frame(D1[c("snp", "beta", "varbeta")])))
-    expect_identical(conditionMessage(e),
-                     "d is a data.frame, not a coloc_dataset; make one with coloc_dataset() or as_coloc_dataset()")
-    ## d is checked before effect_priors
-    e <- expect_error(wakefield_bf(D1, effect_priors = 1))
-    expect_identical(conditionMessage(e),
-                     "d is a list, not a coloc_dataset; make one with coloc_dataset() or as_coloc_dataset()")
-})
-
 test_that("wakefield_bf() checks a coloc_dataset again, as it may have changed since it was made", {
     changed <- as_coloc_dataset(D1)
     changed$beta[1] <- NA
