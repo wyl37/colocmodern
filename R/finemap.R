@@ -66,6 +66,8 @@ validate_coloc_finemap <- function(x) {
         fail("snps must be a data.frame; it is ", .what_is(snps))
     if (!"snp" %in% names(snps))
         fail("snps must have a snp column")
+    if (!is.character(snps[["snp"]]))
+        fail("snps$snp must be a character vector of snp ids; it is ", .what_is(snps[["snp"]]))
     if (!identical(snps[["snp"]], cn[cn != "null"]))
         fail("snps$snp must be the column names of bf, in the same order, without null")
 
@@ -85,15 +87,23 @@ validate_coloc_finemap <- function(x) {
 ##' no effect. [finemap()] makes one from a dataset; `as_coloc_finemap()` makes
 ##' one from natural log Bayes factors you have computed yourself.
 ##'
-##' From a matrix, each row is a signal, `idx` is the row number, `engine` is
-##' `"external"`, and `args` is empty. A named vector is treated as a single
-##' signal. A `coloc_finemap` is returned as it is. If a `"null"` column (or
-##' element) is present, it is placed last in `bf` and excluded from `snps`.
+##' From a matrix, each row is a signal, `engine` is `"external"`, and `args`
+##' is empty. A vector is treated as a single signal. A `coloc_finemap` is
+##' returned as it is. If a `"null"` column (or element) is present, it is
+##' placed last in `bf` and excluded from `snps`.
 ##'
-##' @param x a numeric matrix of natural log Bayes factors (signals x snps) with
-##'   snp ids as column names; a numeric vector of natural log Bayes factors
-##'   named by snp id; or a `coloc_finemap`.
-##' @param ... further arguments passed to methods (currently unused).
+##' @param x a numeric matrix of natural log Bayes factors (signals x snps),
+##'   with snp ids as column names or given in `snps`; a numeric vector of
+##'   natural log Bayes factors, named by snp id or with snp ids given in
+##'   `snps`; or a `coloc_finemap`.
+##' @param snps optional snp ids for the columns of `x`: a character vector, or
+##'   a `data.frame` with a `snp` column. Other columns of a `data.frame` are
+##'   kept in `snps`. When `x` has snp ids as names, `snps` must have the same
+##'   ids in the same order, without `"null"`.
+##' @param idx optional whole numbers above 0, one per signal, such as the
+##'   SuSiE credible set each signal came from. By default, the row number.
+##' @param ... not used. An argument given here stops with an error, so a
+##'   misspelt `snps` or `idx` is not ignored.
 ##' @return A list of class `"coloc_finemap"` with these elements:
 ##'
 ##' * `bf`: a numeric matrix with one row per signal and one column per snp,
@@ -116,40 +126,80 @@ validate_coloc_finemap <- function(x) {
 ##'              dimnames = list(NULL, c("s1", "s2", "s3")))
 ##' as_coloc_finemap(bf)
 ##' as_coloc_finemap(c(s1 = 0.1, s2 = 3.2, s3 = 0.4))
+##' ## the two rows came from SuSiE credible sets 2 and 5
+##' as_coloc_finemap(unname(bf), snps = c("s1", "s2", "s3"), idx = c(2, 5))
 as_coloc_finemap <- function(x, ...) {
     UseMethod("as_coloc_finemap")
 }
 
+##' @rdname as_coloc_finemap
 ##' @export
-as_coloc_finemap.matrix <- function(x, ...) {
-    ## A matrix with no columns goes on to the validator, which says it has no snps
-    if (ncol(x) > 0L && is.null(colnames(x)))
-        stop("the matrix has no column names; name its columns by snp id", call. = FALSE)
-    cn <- colnames(x)
-    new_coloc_finemap(
-        x,
-        seq_len(nrow(x)),
-        data.frame(snp = cn[!cn %in% "null"], stringsAsFactors = FALSE),
-        "external"
-    )
+as_coloc_finemap.matrix <- function(x, snps = NULL, idx = seq_len(nrow(x)), ...) {
+    .no_dots(...)
+    if (is.null(snps)) {
+        ## A matrix with no columns goes on to the validator, which says it has no snps
+        if (ncol(x) > 0L && is.null(colnames(x)))
+            stop("the matrix has no column names; name its columns by snp id, or give snps",
+                 call. = FALSE)
+        cn <- colnames(x)
+        snps <- data.frame(snp = cn[!cn %in% "null"], stringsAsFactors = FALSE)
+    } else {
+        if (is.character(snps))
+            snps <- data.frame(snp = snps, stringsAsFactors = FALSE)
+        if (!is.data.frame(snps))
+            stop("snps must be a character vector of snp ids or a data.frame with a snp column; it is ",
+                 .what_is(snps), call. = FALSE)
+        if (!"snp" %in% names(snps))
+            stop("snps must have a snp column", call. = FALSE)
+        ## R before 4.0 makes a factor of data.frame(snp = ids) by default
+        if (is.factor(snps[["snp"]]))
+            snps[["snp"]] <- as.character(snps[["snp"]])
+        if (is.null(colnames(x))) {
+            if (nrow(snps) != ncol(x))
+                stop("snps has ", nrow(snps), " snps but x has ", ncol(x),
+                     " log Bayes factors per signal", call. = FALSE)
+            colnames(x) <- snps[["snp"]]
+        }
+    }
+    new_coloc_finemap(x, idx, snps, "external")
 }
 
+##' @rdname as_coloc_finemap
 ##' @export
-as_coloc_finemap.numeric <- function(x, ...) {
-    if (is.null(names(x)))
-        stop("the vector has no names; name it by snp id", call. = FALSE)
-    as_coloc_finemap(matrix(x, nrow = 1L, dimnames = list(NULL, names(x))))
+as_coloc_finemap.numeric <- function(x, snps = NULL, idx = 1L, ...) {
+    .no_dots(...)
+    if (is.null(names(x)) && is.null(snps))
+        stop("the vector has no names; name it by snp id, or give snps", call. = FALSE)
+    as_coloc_finemap(matrix(x, nrow = 1L, dimnames = list(NULL, names(x))),
+                     snps = snps, idx = idx)
 }
 
 ##' @export
 as_coloc_finemap.coloc_finemap <- function(x, ...) {
+    if (any(c("snps", "idx") %in% names(list(...))))
+        stop("x is already a coloc_finemap; snps and idx apply only to a matrix or a vector",
+             call. = FALSE)
+    .no_dots(...)
     x
+}
+
+## Stops when ... holds anything, as a method's ... is there only because the
+## generic has it, and a misspelt argument would otherwise be ignored
+.no_dots <- function(...) {
+    n <- ...length()
+    if (n == 0L)
+        return(invisible(NULL))
+    nm <- names(list(...))
+    if (is.null(nm))
+        nm <- character(n)
+    nm[nm == ""] <- "(unnamed)"
+    stop("unused argument", if (n > 1L) "s", ": ", paste(nm, collapse = ", "), call. = FALSE)
 }
 
 ##' @export
 as_coloc_finemap.default <- function(x, ...) {
     stop("x is ", .what_is(x), "; as_coloc_finemap() takes a matrix of log Bayes factors, ",
-         "a named numeric vector or a coloc_finemap", call. = FALSE)
+         "a numeric vector or a coloc_finemap", call. = FALSE)
 }
 
 ##' @export

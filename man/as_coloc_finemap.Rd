@@ -2,16 +2,32 @@
 % Please edit documentation in R/finemap.R
 \name{as_coloc_finemap}
 \alias{as_coloc_finemap}
+\alias{as_coloc_finemap.matrix}
+\alias{as_coloc_finemap.numeric}
 \title{Make a \code{coloc_finemap} from log Bayes factors}
 \usage{
 as_coloc_finemap(x, ...)
+
+\method{as_coloc_finemap}{matrix}(x, snps = NULL, idx = seq_len(nrow(x)), ...)
+
+\method{as_coloc_finemap}{numeric}(x, snps = NULL, idx = 1L, ...)
 }
 \arguments{
-\item{x}{a numeric matrix of natural log Bayes factors (signals x snps) with
-snp ids as column names; a numeric vector of natural log Bayes factors
-named by snp id; or a \code{coloc_finemap}.}
+\item{x}{a numeric matrix of natural log Bayes factors (signals x snps),
+with snp ids as column names or given in \code{snps}; a numeric vector of
+natural log Bayes factors, named by snp id or with snp ids given in
+\code{snps}; or a \code{coloc_finemap}.}
 
-\item{...}{further arguments passed to methods (currently unused).}
+\item{...}{not used. An argument given here stops with an error, so a
+misspelt \code{snps} or \code{idx} is not ignored.}
+
+\item{snps}{optional snp ids for the columns of \code{x}: a character vector, or
+a \code{data.frame} with a \code{snp} column. Other columns of a \code{data.frame} are
+kept in \code{snps}. When \code{x} has snp ids as names, \code{snps} must have the same
+ids in the same order, without \code{"null"}.}
+
+\item{idx}{optional whole numbers above 0, one per signal, such as the
+SuSiE credible set each signal came from. By default, the row number.}
 }
 \value{
 A list of class \code{"coloc_finemap"} with these elements:
@@ -36,10 +52,10 @@ no effect. \code{\link[=finemap]{finemap()}} makes one from a dataset; \code{as_
 one from natural log Bayes factors you have computed yourself.
 }
 \details{
-From a matrix, each row is a signal, \code{idx} is the row number, \code{engine} is
-\code{"external"}, and \code{args} is empty. A named vector is treated as a single
-signal. A \code{coloc_finemap} is returned as it is. If a \code{"null"} column (or
-element) is present, it is placed last in \code{bf} and excluded from \code{snps}.
+From a matrix, each row is a signal, \code{engine} is \code{"external"}, and \code{args}
+is empty. A vector is treated as a single signal. A \code{coloc_finemap} is
+returned as it is. If a \code{"null"} column (or element) is present, it is
+placed last in \code{bf} and excluded from \code{snps}.
 }
 \examples{
 bf <- matrix(c(0.1, 3.2, 0.4,
@@ -47,6 +63,8 @@ bf <- matrix(c(0.1, 3.2, 0.4,
              dimnames = list(NULL, c("s1", "s2", "s3")))
 as_coloc_finemap(bf)
 as_coloc_finemap(c(s1 = 0.1, s2 = 3.2, s3 = 0.4))
+## the two rows came from SuSiE credible sets 2 and 5
+as_coloc_finemap(unname(bf), snps = c("s1", "s2", "s3"), idx = c(2, 5))
 }
 \seealso{
 \code{\link[=finemap]{finemap()}}, which makes a \code{coloc_finemap} from a dataset.
