@@ -4,4 +4,9 @@ S3method(print,coloc_dataset)
 export(as_coloc_dataset)
 export(check_dataset)
 export(coloc_dataset)
-importFrom(stats,pnorm)
+importFrom(stats,
+  coef,
+  lm,
+  pnorm,
+  qnorm
+)

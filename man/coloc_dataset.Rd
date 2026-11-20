@@ -66,8 +66,8 @@ its elements, given as arguments, and \code{as_coloc_dataset()} makes one from a
 list that holds them, such as a dataset made for the coloc package. Both
 check the dataset with \code{\link[=check_dataset]{check_dataset()}}, so a mistake is reported where
 the dataset is made, not later inside \code{\link[=coloc]{coloc()}}. Make your datasets with
-them before you call \code{\link[=finemap]{finemap()}}, \code{\link[=coloc]{coloc()}} or \code{\link[=wakefield_bf]{wakefield_bf()}}, which
-stop when given a plain list.
+them before you call \code{\link[=finemap]{finemap()}} or \code{\link[=coloc]{coloc()}}, which stop when given a
+plain list.
 }
 \details{
 The result has class \code{"coloc_dataset"}, but is still a list with the same
